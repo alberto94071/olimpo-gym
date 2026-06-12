@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+@theme {
+  --color-olimpo-bg: #0A0A0A;
+  --color-olimpo-surface: #141414;
+  --color-olimpo-surface-light: #1A1A1A;
+  --color-olimpo-gold: #C5A55A;
+  --color-olimpo-gold-light: #D4B96E;
+  --color-olimpo-gold-dark: #A68B3E;
+  --color-olimpo-text: #F0F0E8;
+  --color-olimpo-text-muted: #777777;
+  --color-olimpo-green: #4CAF50;
+  --color-olimpo-red: #E53935;
+  --color-olimpo-blue: #42A5F5;
+  --color-olimpo-purple: #AB47BC;
+  --color-olimpo-orange: #FF9800;
+  
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-cinzel), ui-serif, Georgia, serif;
+}
+
+:root {
+  background-color: var(--color-olimpo-bg);
+  color: var(--color-olimpo-text);
+  color-scheme: dark;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-olimpo-bg);
+  background-image: url('/pngtree-abstract-background-enigmatic-dark-grey-marble-texture-image_13883546.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  color: var(--color-olimpo-text);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif);
+}
+
+/* --- Olimpo Aesthetic Classes --- */
+
+/* Marble Texture & Gold Glow for Cards */
+.card-olimpo {
+  background-color: rgba(20, 20, 20, 0.65);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(197, 165, 90, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 0 15px rgba(197, 165, 90, 0.02);
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.card-olimpo:hover {
+  box-shadow: 0 0 25px rgba(197, 165, 90, 0.15), inset 0 0 20px rgba(197, 165, 90, 0.05);
+  border: 1px solid rgba(197, 165, 90, 0.5);
+}
+
+/* Greek Key (Meander) Bottom Border */
+.border-greca {
+  position: relative;
+  padding-bottom: 28px !important;
+}
+
+.border-greca::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 16px;
+  background-image: url("data:image/svg+xml,%3Csvg width='24' height='14' viewBox='0 0 24 14' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,13 L8,13 L8,3 L2,3 L2,10 L6,10 L6,6 L12,6 L12,13 L24,13' fill='none' stroke='%23C5A55A' stroke-width='1.5' stroke-opacity='0.4'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-size: 24px 14px;
+}

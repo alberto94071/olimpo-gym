@@ -1,0 +1,387 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Search, Loader2, CreditCard, Calendar, User, ShieldCheck, Users } from "lucide-react";
+import { searchMembersForPayment, registerPayment, getGroupDetailsForPayment } from "@/actions/payments";
+
+export function PaymentsDashboard({ userRole, gyms }: { userRole: string, gyms: any[] }) {
+  const [query, setQuery] = useState("");
+  const [gymFilter, setGymFilter] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+  const [loadingSearch, setLoadingSearch] = useState(false);
+
+  const [selectedMember, setSelectedMember] = useState<any | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<any | null>(null);
+  const [loadingGroup, setLoadingGroup] = useState(false);
+
+  const [paymentType, setPaymentType] = useState<"mensualidad" | "reposicion_carne">("mensualidad");
+  const [amount, setAmount] = useState("");
+  const [paymentMonth, setPaymentMonth] = useState(""); // YYYY-MM
+  const [paymentMethod, setPaymentMethod] = useState<"efectivo" | "transferencia">("efectivo");
+  const [notes, setNotes] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+
+  // Debounce search
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      setLoadingSearch(true);
+      try {
+        const res = await searchMembersForPayment(query, gymFilter || undefined);
+        setResults(res);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoadingSearch(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [query, gymFilter]);
+
+  // Update default amount when type changes
+  useEffect(() => {
+    if (!selectedMember) return;
+    
+    if (paymentType === "reposicion_carne") {
+      setAmount("15.00");
+    } else {
+      if (selectedGroup) {
+        setAmount(selectedGroup.totalAmount);
+      } else {
+        setAmount(selectedMember.price);
+      }
+    }
+  }, [paymentType, selectedMember, selectedGroup]);
+
+  const handleSelectMember = async (m: any) => {
+    setSuccessMsg("");
+    setSelectedMember(m);
+    setSelectedGroup(null);
+    setPaymentType("mensualidad");
+    
+    // Default next month to pay:
+    const end = new Date(m.membershipEnd);
+    end.setMonth(end.getMonth() + 1);
+    const yyyy = end.getFullYear();
+    const mm = String(end.getMonth() + 1).padStart(2, '0');
+    setPaymentMonth(`${yyyy}-${mm}`);
+    
+    if (m.groupId) {
+      setLoadingGroup(true);
+      try {
+        const groupDetails = await getGroupDetailsForPayment(m.groupId);
+        setSelectedGroup(groupDetails);
+        setAmount(groupDetails.totalAmount);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingGroup(false);
+      }
+    } else {
+      setAmount(m.price);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedMember) return;
+    setProcessing(true);
+    try {
+      await registerPayment({
+        // Always register the payment under the selected member. 
+        // For groups, if it's "mensualidad" we could register it under the representative to be cleaner, 
+        // but backend logic already updates everyone based on groupId when the rep pays.
+        // Wait, the backend logic says "if (member.groupId && member.isRepresentative)".
+        // Since we want ANY member of the group to be able to pay for the group, 
+        // we should pass the Representative ID to the backend if it's a group payment!
+        memberId: selectedGroup ? selectedGroup.groupMembers.find((gm:any) => gm.isRepresentative)?.id || selectedMember.id : selectedMember.id,
+        paymentType,
+        paymentMonth,
+        amount,
+        paymentMethod,
+        notes
+      });
+      setSuccessMsg(`Pago de Q${amount} registrado exitosamente.`);
+      setSelectedMember(null);
+      setSelectedGroup(null);
+      // Refresh search silently
+      const res = await searchMembersForPayment(query, gymFilter || undefined);
+      setResults(res);
+    } catch (err) {
+      console.error(err);
+      alert("Error al registrar el pago");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const isMora = (endDateStr: string) => {
+    // 7 days of grace
+    const graceDate = new Date(endDateStr);
+    graceDate.setDate(graceDate.getDate() + 7);
+    return new Date() > graceDate;
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      {/* Buscador */}
+      <div className="lg:col-span-5 space-y-4">
+        <div className="bg-olimpo-surface p-4 rounded-2xl border border-olimpo-surface-light shadow-lg space-y-3">
+          
+          {userRole === "admin" && (
+            <div>
+              <select 
+                value={gymFilter}
+                onChange={e => setGymFilter(e.target.value)}
+                className="w-full bg-olimpo-bg border border-olimpo-surface-light rounded-xl px-4 py-2 text-sm text-olimpo-text focus:outline-none focus:border-olimpo-gold"
+              >
+                <option value="">Todas las Sedes</option>
+                {gyms.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+            </div>
+          )}
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-olimpo-text-muted" />
+            <input 
+              type="text" 
+              placeholder="Buscar por nombre o código..."
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              className="w-full bg-olimpo-bg border border-olimpo-surface-light rounded-xl pl-10 pr-4 py-3 text-olimpo-text focus:outline-none focus:border-olimpo-gold transition-colors"
+            />
+            {loadingSearch && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-olimpo-gold animate-spin" />}
+          </div>
+        </div>
+
+        <div className="bg-olimpo-surface rounded-2xl border border-olimpo-surface-light shadow-lg overflow-hidden flex flex-col h-[500px]">
+          <div className="p-4 border-b border-olimpo-surface-light bg-olimpo-surface-light/20">
+            <h3 className="font-medium text-olimpo-gold">Resultados ({results.length})</h3>
+          </div>
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+            {results.length === 0 ? (
+              <p className="text-center text-olimpo-text-muted mt-10">Busca a alguien para registrar su pago.</p>
+            ) : (
+              <div className="space-y-2">
+                {results.map((m) => {
+                  const mora = isMora(m.membershipEnd);
+                  return (
+                    <div 
+                      key={m.id} 
+                      onClick={() => handleSelectMember(m)}
+                      className={`p-3 rounded-lg cursor-pointer transition-all border ${
+                        selectedMember?.id === m.id 
+                          ? "bg-olimpo-gold/10 border-olimpo-gold/50 shadow-sm" 
+                          : "bg-olimpo-bg border-olimpo-surface-light hover:border-olimpo-gold/30 hover:bg-olimpo-surface-light/30"
+                      }`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-bold text-olimpo-text flex items-center gap-2">
+                            {m.name} 
+                            {m.groupId && <Users className="w-3.5 h-3.5 text-olimpo-text-muted" />}
+                          </p>
+                          <p className="text-xs text-olimpo-gold font-mono">{m.code}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded ${
+                            mora ? "bg-olimpo-red text-white animate-pulse shadow-[0_0_10px_rgba(255,0,0,0.5)]" : "bg-green-500/10 text-green-500"
+                          }`}>
+                            {mora ? "MOROSO" : "AL DÍA"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Formulario de Pago */}
+      <div className="lg:col-span-7">
+        {successMsg && (
+          <div className="mb-4 p-4 bg-green-500/10 border border-green-500/30 text-green-500 rounded-xl font-medium">
+            {successMsg}
+          </div>
+        )}
+
+        {selectedMember ? (
+          <div className="bg-olimpo-surface p-6 sm:p-8 rounded-2xl border border-olimpo-surface-light shadow-lg relative">
+            {loadingGroup && (
+              <div className="absolute inset-0 bg-olimpo-surface/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-2xl">
+                <Loader2 className="w-10 h-10 text-olimpo-gold animate-spin mb-4" />
+                <p className="text-olimpo-gold font-medium animate-pulse">Cargando datos del grupo...</p>
+              </div>
+            )}
+
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h2 className="text-2xl font-serif font-bold text-olimpo-gold mb-1">Registrar Cobro</h2>
+                {selectedGroup ? (
+                  <p className="text-olimpo-text-muted">
+                    Pago Grupal | Seleccionaste a: <span className="text-olimpo-text">{selectedMember.name}</span>
+                  </p>
+                ) : (
+                  <p className="text-olimpo-text-muted">
+                    Para: <span className="font-medium text-olimpo-text">{selectedMember.name}</span>
+                  </p>
+                )}
+              </div>
+              
+              <div className="text-right">
+                 <span className={`text-xs uppercase font-black px-3 py-1.5 rounded-lg ${
+                    isMora(selectedMember.membershipEnd) 
+                      ? "bg-olimpo-red text-white shadow-[0_0_15px_rgba(255,0,0,0.4)]" 
+                      : "bg-green-500/20 text-green-400 border border-green-500/50"
+                  }`}>
+                    {isMora(selectedMember.membershipEnd) ? "ESTADO: MOROSO" : "ESTADO: AL DÍA"}
+                  </span>
+              </div>
+            </div>
+
+            {selectedGroup && paymentType === "mensualidad" && (
+              <div className="bg-olimpo-gold/5 border border-olimpo-gold/30 p-4 rounded-xl mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Users className="w-5 h-5 text-olimpo-gold" />
+                  <h4 className="font-bold text-olimpo-gold">Resumen del Grupo ({selectedGroup.groupMembers.length} integrantes)</h4>
+                </div>
+                <div className="space-y-2 mb-3">
+                  {selectedGroup.groupMembers.map((gm: any) => (
+                    <div key={gm.id} className="flex justify-between items-center text-sm p-2 bg-olimpo-bg rounded-lg border border-olimpo-surface-light">
+                      <span className="flex items-center gap-2 text-olimpo-text">
+                        {gm.isRepresentative && <ShieldCheck className="w-4 h-4 text-olimpo-gold" />}
+                        {gm.name}
+                      </span>
+                      <span className="text-olimpo-text-muted font-mono">Q {gm.price}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-olimpo-text-muted">Al confirmar este pago, se renovará automáticamente la membresía de **todos** los integrantes de este grupo.</p>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-olimpo-text-muted mb-2">Tipo de Cobro</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentType("mensualidad")}
+                      className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-all ${
+                        paymentType === "mensualidad" ? "bg-olimpo-gold text-black shadow-md" : "bg-olimpo-bg text-olimpo-text-muted hover:text-olimpo-text border border-olimpo-surface-light"
+                      }`}
+                    >
+                      <Calendar className="w-4 h-4" /> Mensualidad
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentType("reposicion_carne")}
+                      className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-all ${
+                        paymentType === "reposicion_carne" ? "bg-olimpo-gold text-black shadow-md" : "bg-olimpo-bg text-olimpo-text-muted hover:text-olimpo-text border border-olimpo-surface-light"
+                      }`}
+                    >
+                      <User className="w-4 h-4" /> Reposición Carné
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-olimpo-text-muted mb-2">Método de Pago</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("efectivo")}
+                      className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-all ${
+                        paymentMethod === "efectivo" ? "bg-olimpo-surface-light text-olimpo-text border border-olimpo-gold/30" : "bg-olimpo-bg text-olimpo-text-muted border border-olimpo-surface-light"
+                      }`}
+                    >
+                      💵 Efectivo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("transferencia")}
+                      className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-all ${
+                        paymentMethod === "transferencia" ? "bg-olimpo-surface-light text-olimpo-text border border-olimpo-gold/30" : "bg-olimpo-bg text-olimpo-text-muted border border-olimpo-surface-light"
+                      }`}
+                    >
+                      🏦 Transf.
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {paymentType === "mensualidad" && (
+                <div>
+                  <label className="block text-sm font-medium text-olimpo-text-muted mb-1">Mes que está pagando</label>
+                  <input 
+                    type="month"
+                    required
+                    value={paymentMonth}
+                    onChange={(e) => setPaymentMonth(e.target.value)}
+                    className="w-full bg-olimpo-bg border border-olimpo-surface-light rounded-xl px-4 py-3 text-olimpo-text focus:outline-none focus:border-olimpo-gold"
+                  />
+                  <p className="text-xs text-olimpo-text-muted mt-1">
+                    El sistema moverá su fecha de vencimiento al último día del mes que selecciones aquí.
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-olimpo-text-muted mb-1">Monto a Cobrar (Q)</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-olimpo-text-muted font-bold">Q</span>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    required
+                    readOnly={userRole !== "admin"}
+                    className={`w-full bg-olimpo-bg border border-olimpo-surface-light rounded-xl pl-10 pr-4 py-3 text-xl font-bold text-olimpo-text focus:outline-none focus:border-olimpo-gold ${userRole !== "admin" ? "opacity-80" : ""}`}
+                  />
+                </div>
+                {userRole !== "admin" && <p className="text-xs text-olimpo-text-muted mt-1">Solo el administrador puede modificar el monto manualmente.</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-olimpo-text-muted mb-1">Notas (Opcional)</label>
+                <input 
+                  type="text" 
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Ej. Pagó en moneda de a 1, o transfirió ayer..."
+                  className="w-full bg-olimpo-bg border border-olimpo-surface-light rounded-xl px-4 py-3 text-sm text-olimpo-text focus:outline-none focus:border-olimpo-gold"
+                />
+              </div>
+
+              <div className="pt-4 border-t border-olimpo-surface-light">
+                <button 
+                  type="submit" 
+                  disabled={processing}
+                  className="w-full py-4 rounded-xl font-bold text-lg bg-olimpo-gold text-black hover:bg-olimpo-gold-light transition-colors flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-olimpo-gold/20"
+                >
+                  {processing ? <Loader2 className="w-6 h-6 animate-spin" /> : (selectedGroup && paymentType === "mensualidad" ? "Pagar para todos los del Grupo" : "Confirmar e Imprimir Recibo")}
+                </button>
+              </div>
+
+            </form>
+          </div>
+        ) : (
+          <div className="bg-olimpo-surface border border-olimpo-surface-light rounded-2xl h-full min-h-[400px] flex flex-col items-center justify-center text-olimpo-text-muted p-6 text-center">
+            <CreditCard className="w-16 h-16 mb-4 opacity-20" />
+            <h3 className="text-xl font-serif text-olimpo-text mb-2">Ningún Miembro Seleccionado</h3>
+            <p className="max-w-md">Usa el buscador de la izquierda para encontrar a un miembro y registrar su mensualidad o reposición de carné.</p>
+          </div>
+        )}
+      </div>
+
+    </div>
+  );
+}

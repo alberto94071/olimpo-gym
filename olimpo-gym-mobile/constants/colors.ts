@@ -1,0 +1,17 @@
+export const Colors = {
+  gold: "#C5A55A",
+  goldLight: "#D4B96E",
+  goldDark: "#A68B3E",
+  bg: "#0A0A0A",
+  card: "#141414",
+  card2: "#1A1A1A",
+  border: "#2A2A2A",
+  text: "#F0F0E8",
+  dim: "#777777",
+  green: "#4CAF50",
+  red: "#E53935",
+  orange: "#FF9800",
+  blue: "#42A5F5",
+  purple: "#AB47BC",
+  white: "#FFFFFF",
+} as const;

@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "Olimpo Gym",
+    "slug": "olimpo-gym-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "olimpogym",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.olimpogym.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0A0A0A",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png"
+      },
+      "package": "com.olimpogym.mobile",
+      "permissions": [
+        "NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-web-browser",
+      "expo-secure-store",
+      "expo-image",
+      "expo-splash-screen",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#C5A55A",
+          "defaultChannel": "default"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ffa1fb35-0026-4c5f-9938-76f0e403147c"
+      }
+    },
+    "owner": "olimpo_gym"
+  }
+}

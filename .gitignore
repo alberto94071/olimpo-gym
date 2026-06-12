@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Env files
+.env
+.env.local
+.env*.local
+
+# Build outputs
+.next/
+dist/
+build/
+
+# Vercel
+.vercel/
+
+# Expo
+.expo/
+web-build/
+
+# OS
+.DS_Store
+Thumbs.db
