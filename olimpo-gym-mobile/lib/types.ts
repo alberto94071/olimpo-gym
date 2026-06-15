@@ -87,6 +87,7 @@ export interface RoutineExercise {
   rest: string;
   notes: string;
   imageUrl: string | null;
+  videoUrl: string | null;
   sortOrder: number;
 }
 

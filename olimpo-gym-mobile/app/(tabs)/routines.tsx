@@ -12,9 +12,15 @@ import {
   Image,
 } from "react-native";
 import Svg, { Path, Circle, Rect } from "react-native-svg";
+import YoutubePlayer from "react-native-youtube-iframe";
 import { Colors } from "@/constants/colors";
 import { apiFetch } from "@/lib/api";
 import type { Routine, WorkoutSession, SetLog } from "@/lib/types";
+
+function getYouTubeId(url: string): string | null {
+  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 
@@ -106,6 +112,7 @@ export default function RoutinesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [playingVideo, setPlayingVideo] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -317,13 +324,48 @@ export default function RoutinesScreen() {
             const setCount = parseSetCount(ex.sets);
             const logs = setLogs[ex.exerciseId] ?? [];
             const allDone = Array.from({ length: setCount }, (_, i) => i).every((i) => logs[i]?.completed);
+            const ytId = ex.videoUrl ? getYouTubeId(ex.videoUrl) : null;
+            const isPlaying = playingVideo === ex.exerciseId;
 
             return (
               <View key={ex.routineExerciseId} style={[styles.exerciseCard, allDone && styles.exerciseCardDone]}>
-                {/* Exercise image */}
-                {ex.imageUrl && (
+                {/* YouTube player or image */}
+                {ytId ? (
+                  <View style={styles.videoContainer}>
+                    {isPlaying ? (
+                      <YoutubePlayer
+                        height={200}
+                        play={true}
+                        videoId={ytId}
+                        onChangeState={(state) => {
+                          if (state === "ended") setPlayingVideo(null);
+                        }}
+                      />
+                    ) : (
+                      <TouchableOpacity
+                        onPress={() => setPlayingVideo(ex.exerciseId)}
+                        style={styles.videoThumb}
+                        activeOpacity={0.85}
+                      >
+                        <Image
+                          source={{ uri: `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` }}
+                          style={StyleSheet.absoluteFillObject}
+                          resizeMode="cover"
+                        />
+                        <View style={styles.playOverlay}>
+                          <View style={styles.playButton}>
+                            <Svg width={20} height={20} viewBox="0 0 24 24" fill="white">
+                              <Path d="M8 5v14l11-7z" />
+                            </Svg>
+                          </View>
+                          <Text style={styles.videoLabel}>Ver técnica del instructor</Text>
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ) : ex.imageUrl ? (
                   <Image source={{ uri: ex.imageUrl }} style={styles.exerciseImage} resizeMode="cover" />
-                )}
+                ) : null}
 
                 {/* Header */}
                 <View style={styles.exerciseHeader}>
@@ -639,4 +681,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   finishBtnText: { color: "#000", fontWeight: "700", fontSize: 14 },
+
+  // Video player
+  videoContainer: { width: "100%", backgroundColor: "#000" },
+  videoThumb: {
+    width: "100%",
+    height: 200,
+    backgroundColor: "#000",
+    overflow: "hidden",
+  },
+  playOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  playButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#FF0000",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  videoLabel: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
 });

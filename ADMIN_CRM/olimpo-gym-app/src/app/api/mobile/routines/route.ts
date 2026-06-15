@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
         defaultRest: exercises.defaultRest,
         exerciseNotes: exercises.notes,
         imageUrl: exercises.imageUrl,
+        videoUrl: exercises.videoUrl,
       })
       .from(routineExercises)
       .innerJoin(exercises, eq(routineExercises.exerciseId, exercises.id))
@@ -61,6 +62,7 @@ export async function GET(req: NextRequest) {
           rest: i.rest || i.defaultRest || "2 min",
           notes: i.notes || i.exerciseNotes || "",
           imageUrl: i.imageUrl,
+          videoUrl: i.videoUrl,
           sortOrder: i.sortOrder,
         })),
       },

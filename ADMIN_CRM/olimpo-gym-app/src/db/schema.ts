@@ -206,6 +206,7 @@ export const exercises = pgTable("exercises", {
   defaultRest: varchar("default_rest", { length: 50 }).default("2 min"),
   notes: text("notes"),
   imageUrl: varchar("image_url", { length: 1024 }),
+  videoUrl: varchar("video_url", { length: 1024 }),
   createdBy: uuid("created_by").references(() => systemUsers.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

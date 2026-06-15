@@ -35,6 +35,7 @@ export async function createExercise(data: {
   defaultRest?: string;
   notes?: string;
   imageUrl?: string;
+  videoUrl?: string;
 }) {
   const session = await auth();
   if (!session?.user) throw new Error("No autorizado");
@@ -52,6 +53,7 @@ export async function createExercise(data: {
     defaultRest: data.defaultRest || "2 min",
     notes: data.notes || null,
     imageUrl: data.imageUrl || null,
+    videoUrl: data.videoUrl || null,
     createdBy: currentUser.id,
   });
 
@@ -68,6 +70,7 @@ export async function updateExercise(
     defaultRest?: string;
     notes?: string;
     imageUrl?: string;
+    videoUrl?: string;
   }
 ) {
   const session = await auth();

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { createExercise, deleteExercise } from "@/actions/exercises";
-import { Plus, Trash2, X, Dumbbell } from "lucide-react";
+import { Plus, Trash2, X, Dumbbell, Play } from "lucide-react";
 
 type MuscleGroup = "pecho" | "espalda" | "hombros" | "biceps" | "triceps" | "piernas" | "gluteos" | "core" | "cardio" | "full_body";
 
@@ -14,6 +14,7 @@ interface Exercise {
   defaultRest: string | null;
   notes: string | null;
   imageUrl: string | null;
+  videoUrl: string | null;
 }
 
 const MUSCLE_COLORS: Record<string, string> = {
@@ -42,6 +43,11 @@ const ALL_MUSCLES: { value: MuscleGroup; label: string }[] = [
   { value: "full_body", label: "Cuerpo completo" },
 ];
 
+function getYouTubeId(url: string): string | null {
+  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
 export function ExercisesClient({
   exercises,
   muscleLabels,
@@ -59,6 +65,7 @@ export function ExercisesClient({
     defaultRest: "2 min",
     notes: "",
     imageUrl: "",
+    videoUrl: "",
   });
   const [error, setError] = useState("");
 
@@ -76,8 +83,9 @@ export function ExercisesClient({
           defaultRest: form.defaultRest,
           notes: form.notes || undefined,
           imageUrl: form.imageUrl || undefined,
+          videoUrl: form.videoUrl || undefined,
         });
-        setForm({ name: "", muscleGroup: "pecho", defaultSets: "3 x 10-12", defaultRest: "2 min", notes: "", imageUrl: "" });
+        setForm({ name: "", muscleGroup: "pecho", defaultSets: "3 x 10-12", defaultRest: "2 min", notes: "", imageUrl: "", videoUrl: "" });
         setShowForm(false);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error al crear ejercicio");
@@ -135,39 +143,70 @@ export function ExercisesClient({
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map((ex) => (
-            <div key={ex.id} className="card-olimpo rounded-xl p-4 flex flex-col gap-3">
-              {ex.imageUrl && (
-                <img src={ex.imageUrl} alt={ex.name} className="w-full h-36 object-cover rounded-lg bg-olimpo-bg" />
-              )}
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="font-semibold text-olimpo-text text-sm">{ex.name}</h3>
-                <button
-                  onClick={() => handleDelete(ex.id)}
-                  disabled={pending}
-                  className="text-olimpo-text-muted hover:text-olimpo-red transition-colors shrink-0"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+          {filtered.map((ex) => {
+            const ytId = ex.videoUrl ? getYouTubeId(ex.videoUrl) : null;
+            const thumbnail = ytId
+              ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg`
+              : ex.imageUrl || null;
+
+            return (
+              <div key={ex.id} className="card-olimpo rounded-xl p-4 flex flex-col gap-3">
+                {/* Thumbnail / video preview */}
+                {thumbnail && (
+                  <div className="relative w-full h-36 rounded-lg overflow-hidden bg-olimpo-bg">
+                    <img src={thumbnail} alt={ex.name} className="w-full h-full object-cover" />
+                    {ytId && (
+                      <a
+                        href={ex.videoUrl!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/50 transition-colors group"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+                        </div>
+                      </a>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-semibold text-olimpo-text text-sm">{ex.name}</h3>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {ytId && (
+                      <span className="text-[10px] font-bold bg-red-600/20 text-red-400 border border-red-600/30 px-1.5 py-0.5 rounded">
+                        VIDEO
+                      </span>
+                    )}
+                    <button
+                      onClick={() => handleDelete(ex.id)}
+                      disabled={pending}
+                      className="text-olimpo-text-muted hover:text-olimpo-red transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <span className={`self-start px-2.5 py-1 rounded-full text-xs font-semibold border ${MUSCLE_COLORS[ex.muscleGroup] || ""}`}>
+                  {muscleLabels[ex.muscleGroup] ?? ex.muscleGroup}
+                </span>
+                <div className="flex gap-3 text-xs text-olimpo-text-muted">
+                  {ex.defaultSets && <span>📊 {ex.defaultSets}</span>}
+                  {ex.defaultRest && <span>⏱ {ex.defaultRest}</span>}
+                </div>
+                {ex.notes && <p className="text-xs text-olimpo-text-muted italic">{ex.notes}</p>}
               </div>
-              <span className={`self-start px-2.5 py-1 rounded-full text-xs font-semibold border ${MUSCLE_COLORS[ex.muscleGroup] || ""}`}>
-                {muscleLabels[ex.muscleGroup] ?? ex.muscleGroup}
-              </span>
-              <div className="flex gap-3 text-xs text-olimpo-text-muted">
-                {ex.defaultSets && <span>📊 {ex.defaultSets}</span>}
-                {ex.defaultRest && <span>⏱ {ex.defaultRest}</span>}
-              </div>
-              {ex.notes && <p className="text-xs text-olimpo-text-muted italic">{ex.notes}</p>}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {/* Create modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-olimpo-surface border border-olimpo-surface-light rounded-2xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-olimpo-surface-light">
+          <div className="bg-olimpo-surface border border-olimpo-surface-light rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-olimpo-surface-light sticky top-0 bg-olimpo-surface z-10">
               <h2 className="font-bold text-olimpo-gold text-lg">Nuevo Ejercicio</h2>
               <button onClick={() => setShowForm(false)} className="text-olimpo-text-muted hover:text-olimpo-text">
                 <X className="w-5 h-5" />
@@ -224,12 +263,41 @@ export function ExercisesClient({
                 />
               </div>
               <div>
+                <label className="block text-xs font-semibold text-olimpo-text-muted uppercase tracking-wider mb-1.5">
+                  🎬 URL de Video YouTube (del instructor)
+                </label>
+                <input
+                  value={form.videoUrl}
+                  onChange={(e) => setForm({ ...form, videoUrl: e.target.value })}
+                  className="w-full bg-olimpo-bg border border-olimpo-surface-light rounded-lg px-3 py-2.5 text-olimpo-text focus:outline-none focus:border-olimpo-gold text-sm"
+                  placeholder="https://youtube.com/watch?v=..."
+                />
+                {form.videoUrl && getYouTubeId(form.videoUrl) && (
+                  <div className="mt-2 relative rounded-lg overflow-hidden">
+                    <img
+                      src={`https://img.youtube.com/vi/${getYouTubeId(form.videoUrl)}/mqdefault.jpg`}
+                      className="w-full h-24 object-cover rounded-lg"
+                      alt="Preview"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-lg">
+                      <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center">
+                        <Play className="w-3 h-3 text-white fill-white ml-0.5" />
+                      </div>
+                    </div>
+                    <span className="absolute bottom-1 right-2 text-[10px] text-white font-bold">Vista previa ✓</span>
+                  </div>
+                )}
+                <p className="text-[10px] text-olimpo-text-muted mt-1">
+                  El video se reproducirá dentro de la app sin salir a YouTube.
+                </p>
+              </div>
+              <div>
                 <label className="block text-xs font-semibold text-olimpo-text-muted uppercase tracking-wider mb-1.5">URL de imagen (opcional)</label>
                 <input
                   value={form.imageUrl}
                   onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
                   className="w-full bg-olimpo-bg border border-olimpo-surface-light rounded-lg px-3 py-2.5 text-olimpo-text focus:outline-none focus:border-olimpo-gold text-sm"
-                  placeholder="https://..."
+                  placeholder="https://... (si no hay video)"
                 />
               </div>
               {error && <p className="text-olimpo-red text-sm">{error}</p>}
