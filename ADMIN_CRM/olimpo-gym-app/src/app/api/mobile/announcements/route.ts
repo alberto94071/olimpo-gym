@@ -31,13 +31,15 @@ export async function GET(req: NextRequest) {
         id: announcements.id,
         title: announcements.title,
         body: announcements.body,
+        imageUrl: announcements.imageUrl,
+        pinned: announcements.pinned,
         createdAt: announcements.createdAt,
         gymName: gyms.name,
       })
       .from(announcements)
       .leftJoin(gyms, eq(announcements.gymId, gyms.id))
       .where(gymFilter)
-      .orderBy(desc(announcements.createdAt))
+      .orderBy(desc(announcements.pinned), desc(announcements.createdAt))
       .limit(limit)
       .offset(offset);
 

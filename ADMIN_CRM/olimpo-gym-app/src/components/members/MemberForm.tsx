@@ -3,13 +3,15 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createMember } from "@/actions/members";
-import { Loader2, Calculator, User } from "lucide-react";
+import { Loader2, Calculator, Copy, CheckCircle } from "lucide-react";
 import { PhotoUploader } from "@/components/ui/PhotoUploader";
 
 export function MemberForm({ userRole, gyms }: { userRole: string, gyms: any[] }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [credentials, setCredentials] = useState<{ code: string; password: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const [gymId, setGymId] = useState(gyms[0]?.id || "");
   const [price, setPrice] = useState("150.00");
@@ -30,27 +32,71 @@ export function MemberForm({ userRole, gyms }: { userRole: string, gyms: any[] }
   const totalToPay = Number(price) + Number(enrollmentFee) + Number(cardFee);
   const isReadOnly = userRole !== "admin";
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     try {
       const formData = new FormData(e.currentTarget);
-      // Append fees explicitly since disabled inputs might not send them
       formData.set("enrollmentFee", enrollmentFee);
       formData.set("cardFee", cardFee);
-      
+
       const res = await createMember(formData);
       if (res.success) {
-        router.push("/members");
-        router.refresh();
+        setCredentials({ code: res.code, password: res.password });
       }
     } catch (err: any) {
       setError(err.message || "Ocurrió un error al guardar el miembro");
     } finally {
       setLoading(false);
     }
+  }
+
+  function copyCredentials() {
+    if (!credentials) return;
+    navigator.clipboard.writeText(`Código: ${credentials.code}\nContraseña: ${credentials.password}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  if (credentials) {
+    return (
+      <div className="bg-olimpo-surface rounded-2xl border border-olimpo-gold/30 p-8 max-w-md mx-auto text-center space-y-6">
+        <CheckCircle className="w-14 h-14 text-olimpo-green mx-auto" />
+        <div>
+          <h3 className="text-xl font-serif font-bold text-olimpo-gold mb-1">¡Miembro registrado!</h3>
+          <p className="text-sm text-olimpo-text-muted">Guarda estas credenciales. La contraseña no se mostrará de nuevo.</p>
+        </div>
+        <div className="bg-olimpo-bg rounded-xl border border-olimpo-surface-light p-5 text-left space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-olimpo-text-muted text-sm">Código</span>
+            <span className="font-bold text-olimpo-gold font-mono">{credentials.code}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-olimpo-text-muted text-sm">Contraseña</span>
+            <span className="font-bold text-olimpo-text font-mono text-lg">{credentials.password}</span>
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={copyCredentials}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-olimpo-gold text-olimpo-gold hover:bg-olimpo-gold/10 transition-colors text-sm font-medium"
+          >
+            {copied ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            {copied ? "¡Copiado!" : "Copiar credenciales"}
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push("/members")}
+            className="flex-1 px-4 py-2 rounded-lg bg-olimpo-gold text-black font-bold hover:bg-olimpo-gold-light transition-colors text-sm"
+          >
+            Ir a Miembros
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -105,6 +151,12 @@ export function MemberForm({ userRole, gyms }: { userRole: string, gyms: any[] }
           <div>
             <label className="block text-sm font-medium text-olimpo-text-muted mb-1">Teléfono *</label>
             <input type="tel" name="phone" required className="w-full bg-olimpo-bg border border-olimpo-surface-light rounded-lg px-4 py-2 text-olimpo-text focus:outline-none focus:border-olimpo-gold transition-colors" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-olimpo-text-muted mb-1">
+              Correo electrónico <span className="text-olimpo-gold">(para acceso a la app)</span>
+            </label>
+            <input type="email" name="email" className="w-full bg-olimpo-bg border border-olimpo-surface-light rounded-lg px-4 py-2 text-olimpo-text focus:outline-none focus:border-olimpo-gold transition-colors" placeholder="ejemplo@gmail.com" />
           </div>
           <div>
             <label className="block text-sm font-medium text-olimpo-text-muted mb-1">Fecha de Nacimiento *</label>

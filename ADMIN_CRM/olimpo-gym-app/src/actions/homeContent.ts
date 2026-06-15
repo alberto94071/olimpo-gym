@@ -17,12 +17,13 @@ export async function getHomeContent() {
 }
 
 export async function createHomeContent(data: {
-  type: "video" | "article" | "tip" | "image";
+  type: "video" | "article" | "tip" | "image" | "notice";
   title: string;
   body?: string;
   url?: string;
   imageUrl?: string;
   sortOrder?: number;
+  pinned?: boolean;
 }) {
   const session = await auth();
   if (!session?.user) throw new Error("No autorizado");
@@ -40,6 +41,7 @@ export async function createHomeContent(data: {
     url: data.url || null,
     imageUrl: data.imageUrl || null,
     sortOrder: data.sortOrder ?? 0,
+    pinned: data.pinned ?? false,
     published: true,
     createdBy: currentUser.id,
   });
@@ -62,6 +64,15 @@ export async function toggleHomeContentPublished(id: string, published: boolean)
   if (!session?.user) throw new Error("No autorizado");
 
   await db.update(homeContent).set({ published }).where(eq(homeContent.id, id));
+  revalidatePath("/content");
+  return { success: true };
+}
+
+export async function toggleHomeContentPinned(id: string, pinned: boolean) {
+  const session = await auth();
+  if (!session?.user) throw new Error("No autorizado");
+
+  await db.update(homeContent).set({ pinned }).where(eq(homeContent.id, id));
   revalidatePath("/content");
   return { success: true };
 }

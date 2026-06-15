@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { homeContent, members } from "@/db/schema";
-import { eq, and, or } from "drizzle-orm";
+import { eq, and, or, desc } from "drizzle-orm";
 import { getMobileAuth } from "@/lib/mobile-auth";
 
 export async function GET(req: NextRequest) {
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
           or(eq(homeContent.gymId, member.gymId), eq(homeContent.gymId, null as unknown as string))
         )
       )
-      .orderBy(homeContent.sortOrder, homeContent.createdAt);
+      .orderBy(desc(homeContent.pinned), homeContent.sortOrder, homeContent.createdAt);
 
     return NextResponse.json({ content: items });
   } catch (error: unknown) {

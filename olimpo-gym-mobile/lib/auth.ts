@@ -10,6 +10,7 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
   loginWithGoogle: (idToken: string) => Promise<void>;
+  loginWithEmail: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -66,6 +67,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }
 
+  async function loginWithEmail(email: string, password: string) {
+    const res = await apiFetch<{ token: string; member: AuthMember }>(
+      "/api/mobile/auth/email",
+      {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+        skipAuth: true,
+      }
+    );
+    await saveToken(res.token);
+    setState({ member: res.member, token: res.token, loading: false });
+
+    import("./push").then(({ registerForPushNotifications }) => {
+      registerForPushNotifications().catch(console.error);
+    });
+  }
+
   async function logout() {
     await deleteToken();
     setState({ member: null, token: null, loading: false });
@@ -73,7 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return React.createElement(
     AuthContext.Provider,
-    { value: { ...state, loginWithGoogle, logout } },
+    { value: { ...state, loginWithGoogle, loginWithEmail, logout } },
     children
   );
 }

@@ -137,8 +137,10 @@ export const announcements = pgTable("announcements", {
   title: varchar("title", { length: 255 }).notNull(),
   body: text("body").notNull(),
   gymId: uuid("gym_id").references(() => gyms.id),
+  imageUrl: varchar("image_url", { length: 1024 }),
   sendPush: boolean("send_push").default(false).notNull(),
   published: boolean("published").default(true).notNull(),
+  pinned: boolean("pinned").default(false).notNull(),
   createdBy: uuid("created_by").references(() => systemUsers.id).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -194,7 +196,7 @@ export const muscleGroupEnum = pgEnum("muscle_group", [
   "piernas", "gluteos", "core", "cardio", "full_body",
 ]);
 
-export const contentTypeEnum = pgEnum("content_type", ["video", "article", "tip", "image"]);
+export const contentTypeEnum = pgEnum("content_type", ["video", "article", "tip", "image", "notice"]);
 
 // Exercise bank
 export const exercises = pgTable("exercises", {
@@ -280,6 +282,7 @@ export const homeContent = pgTable("home_content", {
   url: varchar("url", { length: 1024 }),
   imageUrl: varchar("image_url", { length: 1024 }),
   published: boolean("published").default(true).notNull(),
+  pinned: boolean("pinned").default(false).notNull(),
   sortOrder: integer("sort_order").default(0).notNull(),
   createdBy: uuid("created_by").references(() => systemUsers.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),

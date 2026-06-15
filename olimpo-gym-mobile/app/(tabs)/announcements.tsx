@@ -7,6 +7,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from "react-native";
+import Svg, { Path } from "react-native-svg";
 import { Colors } from "@/constants/colors";
 import { apiFetch } from "@/lib/api";
 import { AnnouncementCard } from "@/components/AnnouncementCard";
@@ -17,6 +18,24 @@ interface AnnouncementsResponse {
   totalCount: number;
   page: number;
   totalPages: number;
+}
+
+function MegaphoneIcon({ color = Colors.gold, size = 20 }: { color?: string; size?: number }) {
+  return (
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <Path d="M3 11l18-5v12L3 13v-2z" />
+      <Path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+    </Svg>
+  );
 }
 
 export default function AnnouncementsScreen() {
@@ -47,14 +66,17 @@ export default function AnnouncementsScreen() {
     }
   }, []);
 
-  useEffect(() => { load(1); }, [load]);
+  useEffect(() => {
+    load(1);
+  }, [load]);
 
-  const onRefresh = () => { setRefreshing(true); load(1, true); };
+  const onRefresh = () => {
+    setRefreshing(true);
+    load(1, true);
+  };
 
   const onEndReached = () => {
-    if (!loadingMore && page < totalPages) {
-      load(page + 1);
-    }
+    if (!loadingMore && page < totalPages) load(page + 1);
   };
 
   if (loading) {
@@ -68,9 +90,17 @@ export default function AnnouncementsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Anuncios</Text>
-        <Text style={styles.subtitle}>{announcements.length} publicaciones</Text>
+        <View style={styles.headerLeft}>
+          <View style={styles.iconWrap}>
+            <MegaphoneIcon />
+          </View>
+          <View>
+            <Text style={styles.title}>Anuncios</Text>
+            <Text style={styles.subtitle}>{announcements.length} publicaciones</Text>
+          </View>
+        </View>
       </View>
+      <View style={styles.headerDivider} />
 
       <FlatList
         data={announcements}
@@ -99,14 +129,41 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   loader: { flex: 1, backgroundColor: Colors.bg, alignItems: "center", justifyContent: "center" },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 56,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingTop: 60,
     paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
-  title: { color: Colors.text, fontSize: 24, fontWeight: "800" },
-  subtitle: { color: Colors.dim, fontSize: 13, marginTop: 2 },
-  list: { padding: 16 },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  iconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: Colors.gold + "18",
+    borderWidth: 1,
+    borderColor: Colors.gold + "40",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  title: {
+    color: Colors.text,
+    fontSize: 22,
+    fontWeight: "800",
+    fontFamily: "Cinzel_700Bold",
+  },
+  subtitle: { color: Colors.dim, fontSize: 12, marginTop: 1 },
+  headerDivider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginHorizontal: 24,
+    marginBottom: 4,
+  },
+  list: { padding: 16, paddingTop: 12 },
   empty: { color: Colors.dim, textAlign: "center", marginTop: 40 },
 });

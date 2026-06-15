@@ -6,105 +6,209 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Image,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from "react-native";
-import * as WebBrowser from "expo-web-browser";
-import * as Google from "expo-auth-session/providers/google";
-import { makeRedirectUri } from "expo-auth-session";
+import {
+  GoogleSignin,
+  statusCodes,
+} from "@react-native-google-signin/google-signin";
 import { Colors } from "@/constants/colors";
-import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_ID_ANDROID } from "@/constants/config";
+import { GOOGLE_CLIENT_ID } from "@/constants/config";
 import { useAuth, ApiError } from "@/lib/auth";
 
-WebBrowser.maybeCompleteAuthSession();
+GoogleSignin.configure({
+  webClientId: GOOGLE_CLIENT_ID,
+});
 
 export default function LoginScreen() {
-  const { loginWithGoogle } = useAuth();
+  const { loginWithGoogle, loginWithEmail } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<"google" | "email">("google");
 
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: GOOGLE_CLIENT_ID,
-    androidClientId: GOOGLE_CLIENT_ID_ANDROID,
-    redirectUri: makeRedirectUri({ scheme: "olimpogym" }),
-  });
+  // Email/password form state
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-  React.useEffect(() => {
-    if (response?.type === "success") {
-      const idToken = response.authentication?.idToken;
-      if (idToken) {
-        handleLogin(idToken);
-      }
-    } else if (response?.type === "error") {
-      Alert.alert("Error", "No se pudo completar el inicio de sesión con Google.");
-    }
-  }, [response]);
-
-  async function handleLogin(idToken: string) {
+  async function handleGoogleSignIn() {
     setLoading(true);
     try {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      try { await GoogleSignin.signOut(); } catch {} // force account picker
+      await GoogleSignin.signIn();
+      const { idToken } = await GoogleSignin.getTokens();
+      if (!idToken) throw new Error("No se obtuvo el token de Google.");
       await loginWithGoogle(idToken);
-    } catch (err) {
-      const msg =
-        err instanceof ApiError
-          ? err.status === 404
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      if (code === statusCodes.SIGN_IN_CANCELLED) {
+        // usuario canceló
+      } else if (code === statusCodes.IN_PROGRESS) {
+        // ya en progreso
+      } else if (code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        Alert.alert("Error", "Google Play Services no está disponible.");
+      } else if (err instanceof ApiError) {
+        const msg =
+          err.status === 404
             ? "No estás inscrito en Olimpo Gym. Contacta a tu sede."
-            : err.message
-          : "Error al iniciar sesión. Intenta de nuevo.";
-      Alert.alert("Acceso denegado", msg);
+            : err.message;
+        Alert.alert("Acceso denegado", msg);
+      } else {
+        Alert.alert("Error", "Error al iniciar sesión. Intenta de nuevo.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleEmailLogin() {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert("Error", "Ingresa tu correo y contraseña.");
+      return;
+    }
+    setLoading(true);
+    try {
+      await loginWithEmail(email.trim().toLowerCase(), password);
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        const msg =
+          err.status === 401
+            ? "Correo o contraseña incorrectos."
+            : err.status === 404
+            ? "No estás inscrito en Olimpo Gym. Contacta a tu sede."
+            : err.message;
+        Alert.alert("Acceso denegado", msg);
+      } else {
+        Alert.alert("Error", "Error al iniciar sesión. Intenta de nuevo.");
+      }
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <View style={styles.container}>
-      {/* Logo / Branding */}
-      <View style={styles.logoArea}>
-        <Text style={styles.logoTitle}>OLIMPO</Text>
-        <Text style={styles.logoSubtitle}>GYM</Text>
-        <View style={styles.divider} />
-        <Text style={styles.tagline}>Forjando cuerpos. Construyendo leyendas.</Text>
-      </View>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Logo */}
+        <View style={styles.logoArea}>
+          <Text style={styles.logoTitle}>OLIMPO</Text>
+          <Text style={styles.logoSubtitle}>GYM</Text>
+          <View style={styles.divider} />
+          <Text style={styles.tagline}>Forjando cuerpos. Construyendo leyendas.</Text>
+        </View>
 
-      {/* Login card */}
-      <View style={styles.card}>
-        <Text style={styles.welcomeText}>Bienvenido</Text>
-        <Text style={styles.instructionText}>
-          Inicia sesión con tu cuenta de Google para acceder a tu membresía.
-        </Text>
+        {/* Card */}
+        <View style={styles.card}>
+          <Text style={styles.welcomeText}>Bienvenido</Text>
 
-        <TouchableOpacity
-          style={[styles.googleButton, (!request || loading) && styles.disabled]}
-          onPress={() => promptAsync()}
-          disabled={!request || loading}
-          activeOpacity={0.85}
-        >
-          {loading ? (
-            <ActivityIndicator color={Colors.bg} />
+          {/* Toggle */}
+          <View style={styles.toggle}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, mode === "google" && styles.toggleBtnActive]}
+              onPress={() => setMode("google")}
+            >
+              <Text style={[styles.toggleText, mode === "google" && styles.toggleTextActive]}>
+                Google
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, mode === "email" && styles.toggleBtnActive]}
+              onPress={() => setMode("email")}
+            >
+              <Text style={[styles.toggleText, mode === "email" && styles.toggleTextActive]}>
+                Correo
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {mode === "google" ? (
+            <>
+              <Text style={styles.instructionText}>
+                Inicia sesión con tu cuenta de Google para acceder a tu membresía.
+              </Text>
+              <TouchableOpacity
+                style={[styles.googleButton, loading && styles.disabled]}
+                onPress={handleGoogleSignIn}
+                disabled={loading}
+                activeOpacity={0.85}
+              >
+                {loading ? (
+                  <ActivityIndicator color={Colors.bg} />
+                ) : (
+                  <>
+                    <Text style={styles.googleIcon}>G</Text>
+                    <Text style={styles.googleButtonText}>Iniciar sesión con Google</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </>
           ) : (
             <>
-              <Text style={styles.googleIcon}>G</Text>
-              <Text style={styles.googleButtonText}>Iniciar sesión con Google</Text>
+              <Text style={styles.instructionText}>
+                Usa el correo y contraseña que te proporcionó el gimnasio.
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Correo electrónico"
+                placeholderTextColor={Colors.dim}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                value={email}
+                onChangeText={setEmail}
+                editable={!loading}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Contraseña"
+                placeholderTextColor={Colors.dim}
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+                editable={!loading}
+              />
+              <TouchableOpacity
+                style={[styles.emailButton, loading && styles.disabled]}
+                onPress={handleEmailLogin}
+                disabled={loading}
+                activeOpacity={0.85}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#000" />
+                ) : (
+                  <Text style={styles.emailButtonText}>Ingresar</Text>
+                )}
+              </TouchableOpacity>
             </>
           )}
-        </TouchableOpacity>
 
-        <Text style={styles.disclaimer}>Solo para miembros inscritos</Text>
-      </View>
-    </View>
+          <Text style={styles.disclaimer}>Solo para miembros inscritos</Text>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: Colors.bg,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
+    paddingVertical: 40,
   },
   logoArea: {
     alignItems: "center",
-    marginBottom: 48,
+    marginBottom: 40,
   },
   logoTitle: {
     fontSize: 52,
@@ -144,14 +248,41 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 22,
     fontWeight: "700",
-    marginBottom: 8,
+    marginBottom: 16,
+  },
+  toggle: {
+    flexDirection: "row",
+    backgroundColor: Colors.bg,
+    borderRadius: 10,
+    padding: 4,
+    marginBottom: 20,
+    width: "100%",
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  toggleBtnActive: {
+    backgroundColor: Colors.gold,
+  },
+  toggleText: {
+    color: Colors.dim,
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  toggleTextActive: {
+    color: Colors.bg,
   },
   instructionText: {
     color: Colors.dim,
     fontSize: 14,
     textAlign: "center",
     lineHeight: 20,
-    marginBottom: 28,
+    marginBottom: 20,
   },
   googleButton: {
     flexDirection: "row",
@@ -176,6 +307,31 @@ const styles = StyleSheet.create({
     color: "#1F1F1F",
     fontSize: 16,
     fontWeight: "600",
+  },
+  input: {
+    width: "100%",
+    backgroundColor: Colors.bg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    color: Colors.text,
+    fontSize: 15,
+    marginBottom: 12,
+  },
+  emailButton: {
+    backgroundColor: Colors.gold,
+    borderRadius: 10,
+    paddingVertical: 14,
+    width: "100%",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  emailButtonText: {
+    color: "#000",
+    fontSize: 16,
+    fontWeight: "700",
   },
   disclaimer: {
     color: Colors.dim,

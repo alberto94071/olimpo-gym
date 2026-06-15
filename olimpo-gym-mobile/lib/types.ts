@@ -54,7 +54,9 @@ export interface Announcement {
   id: string;
   title: string;
   body: string;
+  imageUrl?: string | null;
   gymName?: string | null;
+  pinned: boolean;
   createdAt: string;
 }
 
@@ -120,10 +122,11 @@ export interface WorkoutSession {
 
 export interface HomeContentItem {
   id: string;
-  type: "video" | "article" | "tip" | "image";
+  type: "video" | "article" | "tip" | "image" | "notice";
   title: string;
   body: string | null;
   url: string | null;
   imageUrl: string | null;
+  pinned: boolean;
   sortOrder: number;
 }

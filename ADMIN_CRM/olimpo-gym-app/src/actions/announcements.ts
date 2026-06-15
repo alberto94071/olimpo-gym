@@ -30,7 +30,7 @@ export async function getAnnouncements() {
   return await query;
 }
 
-export async function createAnnouncement(data: { title: string; body: string; gymId?: string; sendPush: boolean }) {
+export async function createAnnouncement(data: { title: string; body: string; imageUrl?: string; gymId?: string; sendPush: boolean; pinned?: boolean }) {
   const session = await auth();
   if (!session?.user) throw new Error("No autorizado");
 
@@ -42,8 +42,10 @@ export async function createAnnouncement(data: { title: string; body: string; gy
   await db.insert(announcements).values({
     title: data.title,
     body: data.body,
+    imageUrl: data.imageUrl ?? null,
     gymId: finalGymId,
     sendPush: data.sendPush,
+    pinned: data.pinned ?? false,
     published: true,
     createdBy: currentUser.id,
   });
